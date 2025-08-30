@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Survey K-Means Clustering</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f5f5f5;
+    }
+    h2 {
+      color: #333;
+    }
+    button {
+      padding: 10px 15px;
+      margin: 5px;
+      border: none;
+      border-radius: 5px;
+      background: #007BFF;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    input, select {
+      padding: 8px;
+      margin: 5px 0;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .hidden {
+      display: none;
+    }
+    .container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 600px;
+      margin: auto;
+      box-shadow: 0px 0px 8px rgba(0,0,0,0.1);
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 15px;
+    }
+    table, th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+    }
+    th {
+      background: #eee;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- Halaman Akses -->
+    <div id="accessPage">
+      <h2>Selamat Datang di Survei</h2>
+      <p>Pilih peran Anda:</p>
+      <button onclick="enterAsRespondent()">Isi Survei</button>
+      <button onclick="showAdminLogin()">Login Admin</button>
+    </div>
+
+    <!-- Login Admin -->
+    <div id="adminLoginPage" class="hidden">
+      <h2>Login Admin</h2>
+      <input type="password" id="adminPassword" placeholder="Masukkan Password">
+      <button onclick="loginAdmin()">Login</button>
+      <p id="loginMsg" style="color:red;"></p>
+    </div>
+
+    <!-- Halaman Responden -->
+    <div id="respondentPage" class="hidden">
+      <h2>Form Survei</h2>
+      <form id="surveyForm">
+        <label>Nama:</label>
+        <input type="text" id="nama" required>
+
+        <label>Umur:</label>
+        <input type="number" id="umur" required>
+
+        <label>Apakah Anda menggunakan AI untuk membuat konten?</label>
+        <select id="ai_usage" required>
+          <option value="">-- pilih --</option>
+          <option value="Ya">Ya</option>
+          <option value="Tidak">Tidak</option>
+        </select>
+
+        <label>Seberapa efektif konten AI menurut Anda?</label>
+        <select id="efektivitas" required>
+          <option value="">-- pilih --</option>
+          <option value="1">1 - Sangat Tidak Efektif</option>
+          <option value="2">2</option>
+          <option value="3">3 - Cukup</option>
+          <option value="4">4</option>
+          <option value="5">5 - Sangat Efektif</option>
+        </select>
+
+        <button type="submit">Kirim</button>
+      </form>
+      <p id="thanksMsg" class="hidden">Terima kasih sudah mengisi survei 🙏</p>
+      <button onclick="backToHome()">Kembali</button>
+    </div>
+
+    <!-- Halaman Admin -->
+    <div id="adminPage" class="hidden">
+      <h2>Dashboard Admin</h2>
+      <button onclick="showData()">Lihat Data</button>
+      <button onclick="runClustering()">Jalankan K-Means</button>
+      <button onclick="exportData()">Export Data (JSON)</button>
+      <input type="file" id="importFile" onchange="importData(event)">
+      <div id="dataTable"></div>
+      <div id="clusterResult"></div>
+      <button onclick="backToHome()">Logout</button>
+    </div>
+
+  </div>
+
+<script>
+  const ADMIN_PASSWORD = "admin123"; // ubah sesuai kebutuhan
+
+  // Navigasi
+  function enterAsRespondent() {
+    hideAll();
+    document.getElementById("respondentPage").classList.remove("hidden");
+  }
+  function showAdminLogin() {
+    hideAll();
+    document.getElementById("adminLoginPage").classList.remove("hidden");
+  }
+  function loginAdmin() {
+    const pass = document.getElementById("adminPassword").value;
+    if (pass === ADMIN_PASSWORD) {
+      hideAll();
+      document.getElementById("adminPage").classList.remove("hidden");
+    } else {
+      document.getElementById("loginMsg").textContent = "Password salah!";
+    }
+  }
+  function backToHome() {
+    hideAll();
+    document.getElementById("accessPage").classList.remove("hidden");
+  }
+  function hideAll() {
+    document.querySelectorAll(".container > div").forEach(div => div.classList.add("hidden"));
+  }
+
+  // Form Survei
+  document.getElementById("surveyForm")?.addEventListener("submit", (e)=>{
+    e.preventDefault();
+    const data = {
+      nama: document.getElementById("nama").value,
+      umur: document.getElementById("umur").value,
+      ai_usage: document.getElementById("ai_usage").value,
+      efektivitas: document.getElementById("efektivitas").value
+    };
+    let dataset = JSON.parse(localStorage.getItem("surveyData") || "[]");
+    dataset.push(data);
+    localStorage.setItem("surveyData", JSON.stringify(dataset));
+    e.target.reset();
+    document.getElementById("thanksMsg").classList.remove("hidden");
+  });
+
+  // Admin - Lihat Data
+  function showData() {
+    const dataset = JSON.parse(localStorage.getItem("surveyData") || "[]");
+    if (dataset.length === 0) {
+      document.getElementById("dataTable").innerHTML = "<p>Belum ada data</p>";
+      return;
+    }
+    let html = "<table><tr><th>Nama</th><th>Umur</th><th>AI Usage</th><th>Efektivitas</th></tr>";
+    dataset.forEach(d=>{
+      html += `<tr><td>${d.nama}</td><td>${d.umur}</td><td>${d.ai_usage}</td><td>${d.efektivitas}</td></tr>`;
+    });
+    html += "</table>";
+    document.getElementById("dataTable").innerHTML = html;
+  }
+
+  // Admin - Export
+  function exportData() {
+    const dataset = localStorage.getItem("surveyData");
+    if (!dataset) return alert("Tidak ada data untuk diexport");
+    const blob = new Blob([dataset], {type: "application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "surveyData.json";
+    a.click();
+  }
+
+  // Admin - Import
+  function importData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      localStorage.setItem("surveyData", e.target.result);
+      alert("Data berhasil diimport!");
+    };
+    reader.readAsText(file);
+  }
+
+  // Admin - Clustering Sederhana
+  function runClustering() {
+    const dataset = JSON.parse(localStorage.getItem("surveyData") || "[]");
+    if (dataset.length === 0) {
+      document.getElementById("clusterResult").innerHTML = "<p>Data kosong</p>";
+      return;
+    }
+
+    // Contoh clustering sederhana: kelompokkan berdasarkan efektivitas > 3 atau <= 3
+    const cluster1 = dataset.filter(d=>parseInt(d.efektivitas) > 3);
+    const cluster2 = dataset.filter(d=>parseInt(d.efektivitas) <= 3);
+
+    let html = "<h3>Hasil Clustering Sederhana</h3>";
+    html += `<p>Cluster 1 (Efektivitas > 3): ${cluster1.length} responden</p>`;
+    html += `<p>Cluster 2 (Efektivitas <= 3): ${cluster2.length} responden</p>`;
+    document.getElementById("clusterResult").innerHTML = html;
+  }
+</script>
+</body>
+</html>
